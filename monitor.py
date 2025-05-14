@@ -3,6 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import time
 from pathlib import Path
 
 # === 配置 ===
@@ -71,6 +72,7 @@ def main():
     try:
         for username, keywords in MONITOR_CONFIG.items():
             print(f"\n🔍 正在检查 @{username}...")
+
             user_id = get_user_id(username)
             tweets = get_latest_tweets(user_id)
             alerted_ids = load_last_alerted_ids(username)
@@ -91,6 +93,9 @@ def main():
                     print(f"📨 发送提醒：{tweet_link}")
                 else:
                     print("📝 无关键词匹配：", text)
+
+            # 增加延时，防止连续请求触发限流
+            time.sleep(10)
 
     except Exception as e:
         print("🔥 脚本运行异常：", str(e))
