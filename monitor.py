@@ -1,5 +1,6 @@
 import requests
 import smtplib
+import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
@@ -18,13 +19,35 @@ MONITOR_CONFIG = {
     "Fox2goeth": ["test", "空投"]
 }
 
+USER_ID_CACHE_FILE = "user_ids.json"
+
 # === 公共函数 ===
-def get_user_id(username):
+def load_user_id_cache():
+    if Path(USER_ID_CACHE_FILE).exists():
+        with open(USER_ID_CACHE_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_user_id_cache(cache):
+    with open(USER_ID_CACHE_FILE, 'w') as f:
+        json.dump(cache, f)
+
+def get_user_id(username, cache):
+    if username in cache:
+        return cache[username]
+
+    print(f"🌐 正在从 Twitter 获取 @{username} 的 user_id...")
     url = f"https://api.twitter.com/2/users/by/username/{username}"
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers)
+    if r.status_code == 429:
+        print(f"⛔ 获取 @{username} 的 user_id 时被限流。")
+        return None
     r.raise_for_status()
-    return r.json()['data']['id']
+    user_id = r.json()['data']['id']
+    cache[username] = user_id
+    save_user_id_cache(cache)
+    return user_id
 
 def get_latest_tweets(user_id):
     url = f"https://api.twitter.com/2/users/{user_id}/tweets"
@@ -70,10 +93,16 @@ def save_last_alerted_id(username, tweet_id):
 
 def main():
     try:
+        user_id_cache = load_user_id_cache()
+
         for username, keywords in MONITOR_CONFIG.items():
             print(f"\n🔍 正在检查 @{username}...")
 
-            user_id = get_user_id(username)
+            user_id = get_user_id(username, user_id_cache)
+            if not user_id:
+                print(f"⚠️ 无法获取 @{username} 的 user_id，跳过。")
+                continue
+
             tweets = get_latest_tweets(user_id)
             alerted_ids = load_last_alerted_ids(username)
 
@@ -94,7 +123,6 @@ def main():
                 else:
                     print("📝 无关键词匹配：", text)
 
-            # 增加延时，防止连续请求触发限流
             time.sleep(10)
 
     except Exception as e:
