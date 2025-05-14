@@ -15,8 +15,8 @@ EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 
 # === 多账号 + 多关键词配置 ===
 MONITOR_CONFIG = {
-    "humafinance": ["chuk", "deposits"],
-    #"Fox2goeth": ["test", "空投"]
+    #"humafinance": ["chuk", "deposits"],
+    "Fox2goeth": ["test", "空投"]
 }
 
 ALERT_HISTORY_FILE = "sent_alerts.json"
