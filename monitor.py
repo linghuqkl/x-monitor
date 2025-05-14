@@ -2,7 +2,6 @@ import requests
 import smtplib
 import json
 import os
-import time
 import subprocess
 from pathlib import Path
 from email.mime.text import MIMEText
@@ -16,55 +15,31 @@ EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 
 # === 多账号 + 多关键词配置 ===
 MONITOR_CONFIG = {
-    #"humafinance": ["chuk", "deposits"],
+    "humafinance": ["chuk", "deposits"],
     "Fox2goeth": ["test", "空投"]
 }
 
-USER_ID_CACHE_FILE = "user_ids.json"
 ALERT_HISTORY_FILE = "sent_alerts.json"
 
-# === User ID 缓存 ===
-def load_user_id_cache():
-    if Path(USER_ID_CACHE_FILE).exists():
-        with open(USER_ID_CACHE_FILE, 'r') as f:
-            return json.load(f)
-    return {}
-
-def save_user_id_cache(cache):
-    with open(USER_ID_CACHE_FILE, 'w') as f:
-        json.dump(cache, f, indent=2)
-
-def get_user_id(username, cache):
-    if username in cache:
-        return cache[username]
+# === 获取 User ID ===
+def get_user_id(username):
     print(f"🌐 正在从 Twitter 获取 @{username} 的 user_id...")
     url = f"https://api.twitter.com/2/users/by/username/{username}"
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers)
-    if r.status_code == 429:
-        print(f"❌ 请求 @{username} 时被限流，等待 60 秒重试...")
-        time.sleep(60)
-        r = requests.get(url, headers=headers)
     r.raise_for_status()
-    user_id = r.json()['data']['id']
-    cache[username] = user_id
-    save_user_id_cache(cache)
-    return user_id
+    return r.json()['data']['id']
 
-# === Tweet ===
+# === 获取推文 ===
 def get_latest_tweets(user_id):
     url = f"https://api.twitter.com/2/users/{user_id}/tweets"
     params = {"max_results": 5, "tweet.fields": "created_at,text"}
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers, params=params)
-    if r.status_code == 429:
-        print("⛔ Twitter API 限流，等待 60 秒重试...")
-        time.sleep(60)
-        r = requests.get(url, headers=headers, params=params)
     r.raise_for_status()
     return r.json().get("data", [])
 
-# === 邮件 ===
+# === 邮件发送 ===
 def send_email(subject, body):
     msg = MIMEMultipart()
     msg['From'] = EMAIL_FROM
@@ -76,7 +51,7 @@ def send_email(subject, body):
         server.login(EMAIL_FROM, EMAIL_PASSWORD)
         server.send_message(msg)
 
-# === 发送历史 ===
+# === 提醒记录 ===
 def load_alert_history():
     if Path(ALERT_HISTORY_FILE).exists():
         with open(ALERT_HISTORY_FILE, 'r') as f:
@@ -101,19 +76,23 @@ def commit_file_update(filename, message):
 # === 主逻辑 ===
 def main():
     try:
-        user_id_cache = load_user_id_cache()
-        print("✅ 当前已缓存 user_id：", user_id_cache)
         alert_history = load_alert_history()
 
         for username, keywords in MONITOR_CONFIG.items():
             print(f"\n🔍 正在检查 @{username}...")
 
-            user_id = get_user_id(username, user_id_cache)
-            if not user_id:
-                print(f"⚠️ 无法获取 @{username} 的 user_id。")
+            try:
+                user_id = get_user_id(username)
+            except Exception as e:
+                print(f"❌ 获取 @{username} 的 user_id 失败：{e}")
                 continue
 
-            tweets = get_latest_tweets(user_id)
+            try:
+                tweets = get_latest_tweets(user_id)
+            except Exception as e:
+                print(f"❌ 获取 @{username} 的推文失败：{e}")
+                continue
+
             alerted_ids = set(alert_history.get(username, []))
 
             for tweet in tweets:
@@ -133,11 +112,7 @@ def main():
                 else:
                     print("📝 无关键词匹配: ", text)
 
-            time.sleep(10)
-
-        # commit 更新
         commit_file_update(ALERT_HISTORY_FILE, "更新提醒记录")
-        commit_file_update(USER_ID_CACHE_FILE, "更新 user_id 缓存")
 
     except Exception as e:
         print("🔥 脚本异常: ", str(e))
