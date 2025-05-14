@@ -9,7 +9,7 @@ EMAIL_FROM = os.environ['EMAIL_FROM']
 EMAIL_TO = os.environ['EMAIL_TO']
 EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 TWITTER_USERNAME = 'humafinance'
-KEYWORD = 'deposits'
+KEYWORD = 'chuk'
 
 def get_user_id(username):
     url = f"https://api.twitter.com/2/users/by/username/{username}"
