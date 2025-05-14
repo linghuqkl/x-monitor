@@ -4,12 +4,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 
+# === 配置 ===
 TWITTER_BEARER_TOKEN = os.environ['TWITTER_BEARER_TOKEN']
 EMAIL_FROM = os.environ['EMAIL_FROM']
 EMAIL_TO = os.environ['EMAIL_TO']
 EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 TWITTER_USERNAME = 'humafinance'
-KEYWORD = 'chuk'
+KEYWORD = 'chuk'  # 当前测试关键词
 
 def get_user_id(username):
     url = f"https://api.twitter.com/2/users/by/username/{username}"
@@ -26,6 +27,11 @@ def get_latest_tweets(user_id):
     }
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers, params=params)
+
+    if r.status_code == 429:
+        print("⛔ Twitter API 被限流（429 Too Many Requests），请稍后再试。")
+        return []
+
     r.raise_for_status()
     return r.json().get("data", [])
 
@@ -36,19 +42,26 @@ def send_email(subject, body):
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
-    with smtpllib.SMTP("smtp.gmail.com", 587) as server:
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
         server.starttls()
         server.login(EMAIL_FROM, EMAIL_PASSWORD)
         server.send_message(msg)
 
 def main():
-    user_id = get_user_id(TWITTER_USERNAME)
-    tweets = get_latest_tweets(user_id)
-    for tweet in tweets:
-        if KEYWORD.lower() in tweet['text'].lower():
-            tweet_link = f"https://x.com/{TWITTER_USERNAME}/status/{tweet['id']}"
-            send_email("🚨 Huma 提到 deposits", f"{tweet['text']}\n\n{tweet_link}")
-            break
+    try:
+        user_id = get_user_id(TWITTER_USERNAME)
+        tweets = get_latest_tweets(user_id)
+
+        for tweet in tweets:
+            print("📝 检查推文内容：", tweet['text'])
+            if KEYWORD.lower() in tweet['text'].lower():
+                tweet_link = f"https://x.com/{TWITTER_USERNAME}/status/{tweet['id']}"
+                send_email("🚨 Huma 提到关键词！", f"{tweet['text']}\n\n链接：{tweet_link}")
+                break
+        else:
+            print("🔍 本次扫描未发现包含关键词的推文。")
+    except Exception as e:
+        print("🔥 脚本执行出错：", str(e))
 
 if __name__ == "__main__":
     main()
