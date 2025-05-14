@@ -1,5 +1,8 @@
 name: Monitor Huma Twitter
 
+permissions:
+  contents: write
+  
 on:
   schedule:
     - cron: '*/15 * * * *'  # 每15分钟运行一次
