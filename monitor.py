@@ -42,7 +42,9 @@ def get_user_id(username, cache):
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers)
     if r.status_code == 429:
-        print(f"❌ 请求 @{username} 时被限流"); return None
+        print(f"❌ 请求 @{username} 时被限流，等待 60 秒重试...")
+        time.sleep(60)
+        r = requests.get(url, headers=headers)
     r.raise_for_status()
     user_id = r.json()['data']['id']
     cache[username] = user_id
@@ -56,7 +58,9 @@ def get_latest_tweets(user_id):
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers, params=params)
     if r.status_code == 429:
-        print("❌ Twitter API 限流"); return []
+        print("⛔ Twitter API 限流，等待 60 秒重试...")
+        time.sleep(60)
+        r = requests.get(url, headers=headers, params=params)
     r.raise_for_status()
     return r.json().get("data", [])
 
@@ -122,17 +126,17 @@ def main():
                 if any(kw.lower() in text.lower() for kw in keywords):
                     tweet_link = f"https://x.com/{username}/status/{tweet_id}"
                     subject = f"🚨 @{username} 提到关键词"
-                    body = f"命中关键词的揭示：\n\n{text}\n\n🔗 链接：{tweet_link}"
+                    body = f"命中关键词的推文：\n\n{text}\n\n🔗 链接：{tweet_link}"
                     send_email(subject, body)
                     add_to_alert_history(username, tweet_id, alert_history)
-                    print(f"📨 发送揭示: {tweet_link}")
+                    print(f"📨 发送提醒: {tweet_link}")
                 else:
                     print("📝 无关键词匹配: ", text)
 
             time.sleep(10)
 
         # commit 更新
-        commit_file_update(ALERT_HISTORY_FILE, "更新揭示记录")
+        commit_file_update(ALERT_HISTORY_FILE, "更新提醒记录")
         commit_file_update(USER_ID_CACHE_FILE, "更新 user_id 缓存")
 
     except Exception as e:
