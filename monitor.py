@@ -98,6 +98,7 @@ def commit_file_update(filename, message):
 def main():
     try:
         user_id_cache = load_user_id_cache()
+        print("✅ 当前已缓存 user_id：", user_id_cache)
         alert_history = load_alert_history()
 
         for username, keywords in MONITOR_CONFIG.items():
