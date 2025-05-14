@@ -10,7 +10,7 @@ EMAIL_FROM = os.environ['EMAIL_FROM']
 EMAIL_TO = os.environ['EMAIL_TO']
 EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 TWITTER_USERNAME = 'humafinance'
-KEYWORD = 'chuk'  # 当前测试关键词
+KEYWORD = 'deposits'  # 当前测试关键词
 
 LAST_ALERTED_FILE = 'last_alerted_id.txt'
 
