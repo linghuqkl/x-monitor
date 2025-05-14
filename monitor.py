@@ -54,7 +54,7 @@ def get_user_id(username, cache):
 # === Tweet ===
 def get_latest_tweets(user_id):
     url = f"https://api.twitter.com/2/users/{user_id}/tweets"
-    params = {"max_results": 2, "tweet.fields": "created_at,text"}
+    params = {"max_results": 5, "tweet.fields": "created_at,text"}
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers, params=params)
     if r.status_code == 429:
