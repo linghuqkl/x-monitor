@@ -37,19 +37,33 @@ def get_user_id(username):
     user_ids = load_json(USER_ID_CACHE_FILE)
 
     if username in user_ids:
+        print(f"✅ 已从缓存读取 @{username} 的 user_id: {user_ids[username]}")
         return user_ids[username]
 
     print(f"🌐 正在从 Twitter 获取 @{username} 的 user_id...")
     url = f"https://api.twitter.com/2/users/by/username/{username}"
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers)
-    r.raise_for_status()
 
-    user_id = r.json()['data']['id']
+    if r.status_code != 200:
+        print(f"❌ 获取失败（状态码 {r.status_code}）：{r.text}")
+        r.raise_for_status()
+
+    response_data = r.json()
+    user_data = response_data.get("data")
+
+    if not user_data or "id" not in user_data:
+        print(f"⚠️ 无法从返回数据中提取 user_id: {response_data}")
+        return None
+
+    user_id = user_data["id"]
+    print(f"✅ 获取成功 @{username} → user_id = {user_id}")
+
     user_ids[username] = user_id
     save_json(USER_ID_CACHE_FILE, user_ids)
 
     return user_id
+
 
 # === 获取推文 ===
 def get_latest_tweets(user_id):
