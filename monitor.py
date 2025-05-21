@@ -13,22 +13,43 @@ EMAIL_FROM = os.environ['EMAIL_FROM']
 EMAIL_TO = os.environ['EMAIL_TO']
 EMAIL_PASSWORD = os.environ['EMAIL_PASSWORD']
 
-# === 多账号 + 多关键词配置 ===
 MONITOR_CONFIG = {
-    "humafinance": ["open", "deposits","maxi"],
-    #"other-x-username": ["keyword1", "keyword2"]
+    "humafinance": ["open", "deposits", "maxi"],
+    # "other-x-username": ["keyword1", "keyword2"]
 }
 
 ALERT_HISTORY_FILE = "sent_alerts.json"
+USER_ID_CACHE_FILE = "user_ids.json"
 
-# === 获取 User ID ===
+# === 缓存工具 ===
+def load_json(file_path):
+    if Path(file_path).exists():
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_json(file_path, data):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+
+# === 获取 user_id，支持缓存 ===
 def get_user_id(username):
+    user_ids = load_json(USER_ID_CACHE_FILE)
+
+    if username in user_ids:
+        return user_ids[username]
+
     print(f"🌐 正在从 Twitter 获取 @{username} 的 user_id...")
     url = f"https://api.twitter.com/2/users/by/username/{username}"
     headers = {"Authorization": f"Bearer {TWITTER_BEARER_TOKEN}"}
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-    return r.json()['data']['id']
+
+    user_id = r.json()['data']['id']
+    user_ids[username] = user_id
+    save_json(USER_ID_CACHE_FILE, user_ids)
+
+    return user_id
 
 # === 获取推文 ===
 def get_latest_tweets(user_id):
@@ -53,14 +74,10 @@ def send_email(subject, body):
 
 # === 提醒记录 ===
 def load_alert_history():
-    if Path(ALERT_HISTORY_FILE).exists():
-        with open(ALERT_HISTORY_FILE, 'r') as f:
-            return json.load(f)
-    return {}
+    return load_json(ALERT_HISTORY_FILE)
 
 def save_alert_history(alerts):
-    with open(ALERT_HISTORY_FILE, 'w') as f:
-        json.dump(alerts, f, indent=2)
+    save_json(ALERT_HISTORY_FILE, alerts)
 
 def add_to_alert_history(username, tweet_id, alerts):
     alerts.setdefault(username, []).append(tweet_id)
