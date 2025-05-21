@@ -143,7 +143,10 @@ def main():
                 else:
                     print("📝 无关键词匹配: ", text)
 
+    
         commit_file_update(ALERT_HISTORY_FILE, "更新提醒记录")
+        commit_file_update(USER_ID_CACHE_FILE, "更新用户ID缓存")
+
 
     except Exception as e:
         print("🔥 脚本异常: ", str(e))
