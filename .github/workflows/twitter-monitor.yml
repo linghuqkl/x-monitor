@@ -3,9 +3,9 @@ name: Monitor Huma Twitter
 permissions:
   contents: write
   
-on:
-  schedule:
-    - cron: '0 * * * *'  # 每15分钟运行一次
+# on:
+#  schedule:
+#    - cron: '0 * * * *'  # 每1小时运行一次
   workflow_dispatch:        # 允许手动触发
 
 jobs:
